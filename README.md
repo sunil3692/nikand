@@ -2,7 +2,7 @@
 
 Scroll-animated product website for **Nikand 3 in 1 Laundry Detergent Powder** and **Nikand Detergent Cake**.
 
-As you scroll, a 3D animation of the Nikand pouch plays like a video. It is a sequence of 150 pre-rendered frames drawn on a `<canvas>` with GSAP ScrollTrigger (the same technique as Apple product pages).
+As you scroll, a 3D story plays like a video: the Nikand pouch spins, dirty clothes fly into a washing machine, powder pours in, the machine washes, and the clean clothes wave on a clothesline (they keep waving while you stay there). It is a sequence of 300 pre-rendered frames drawn on a `<canvas>` with GSAP ScrollTrigger (the same technique as Apple product pages).
 
 ## Files
 
@@ -26,8 +26,8 @@ python3 -m http.server 8000
 ```bash
 cd tools/render
 npm install three@0.169.0
-node render.js ../../frames/desktop 1280 720 150
-node render.js ../../frames/mobile 720 1280 150
+node render.js ../../frames/desktop 1280 720 300
+node render.js ../../frames/mobile 720 1280 300
 ```
 
 Needs Node and Playwright with Chromium.

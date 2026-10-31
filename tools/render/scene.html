@@ -4,6 +4,11 @@
 <script type="importmap">{"imports":{"three":"./node_modules/three/build/three.module.js","three/addons/":"./node_modules/three/examples/jsm/"}}</script>
 </head><body>
 <script type="module">
+// Nikand scroll story. window.renderAt(t) draws the scene at t in [0,1].
+// 0.00-0.20 pouch intro + spin      0.20-0.30 washing machine arrives
+// 0.30-0.45 dirty clothes fly in    0.45-0.57 powder poured from pouch
+// 0.57-0.66 door shuts, wash        0.66-0.78 clean clothes fly to the line
+// 0.78-0.88 clothes wave (seamless loop)  0.88-1.00 pouch + cake
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
@@ -11,6 +16,9 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 const params = new URLSearchParams(location.search);
 const W = +params.get('w') || 1280, H = +params.get('h') || 720;
 const portrait = H > W;
+const P = (l, p) => (portrait ? p : l);
+const LOOP0 = 233 / 299, LOOP1 = 263 / 299, WAVES = 3; // exactly 30 frames (files 0234-0264) of a 300-frame render
+window.LOOP = [LOOP0, LOOP1];
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
 renderer.setPixelRatio(1);
@@ -25,176 +33,242 @@ const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 scene.environmentIntensity = 0.45;
 
+const canvasTex = (c) => { const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; };
+const mkCanvas = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return [c, c.getContext('2d')]; };
+const rnd = (() => { let s = 7; return () => (s = (s * 16807) % 2147483647) / 2147483647; })();
+
 // ---------- background ----------
-function bgTexture() {
-  const c = document.createElement('canvas'); c.width = 1024; c.height = 1024;
-  const g = c.getContext('2d');
+{
+  const [c, g] = mkCanvas(1024, 1024);
   const r = g.createRadialGradient(512, 430, 40, 512, 512, 760);
   r.addColorStop(0, '#1f6fd6'); r.addColorStop(0.45, '#0b3a8a'); r.addColorStop(1, '#020c26');
   g.fillStyle = r; g.fillRect(0, 0, 1024, 1024);
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
-}
-scene.background = bgTexture();
-
-// ---------- label textures ----------
-function sparkle(g, x, y, s, a = 1) {
-  g.save(); g.globalAlpha = a; g.fillStyle = '#fff'; g.beginPath();
-  g.moveTo(x, y - s); g.quadraticCurveTo(x, y, x + s, y); g.quadraticCurveTo(x, y, x, y + s);
-  g.quadraticCurveTo(x, y, x - s, y); g.quadraticCurveTo(x, y, x, y - s); g.fill(); g.restore();
-}
-function frontLabel() {
-  const c = document.createElement('canvas'); c.width = 1024; c.height = 1434;
-  const g = c.getContext('2d');
-  const lg = g.createLinearGradient(0, 0, 0, c.height);
-  lg.addColorStop(0, '#0a4fc4'); lg.addColorStop(0.55, '#1683f0'); lg.addColorStop(1, '#063a9a');
-  g.fillStyle = lg; g.fillRect(0, 0, c.width, c.height);
-  // swoosh
-  g.save(); g.globalAlpha = 0.9;
-  const sw = g.createLinearGradient(0, 700, 1024, 1100);
-  sw.addColorStop(0, '#36e0ff'); sw.addColorStop(1, '#ffffff');
-  g.fillStyle = sw; g.beginPath(); g.moveTo(0, 980);
-  g.bezierCurveTo(300, 780, 700, 1180, 1024, 880); g.lineTo(1024, 1020);
-  g.bezierCurveTo(700, 1300, 300, 900, 0, 1110); g.closePath(); g.fill(); g.restore();
-  // bubbles
-  for (let i = 0; i < 22; i++) {
-    const x = (i * 197) % 1024, y = 200 + ((i * 331) % 700), r = 14 + (i * 7) % 40;
-    g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = 4; g.beginPath(); g.arc(x, y, r, 0, 7); g.stroke();
-    g.fillStyle = 'rgba(255,255,255,.5)'; g.beginPath(); g.arc(x - r * .35, y - r * .35, r * .18, 0, 7); g.fill();
-  }
-  // top band
-  g.fillStyle = '#ffcf2e'; g.fillRect(0, 0, 1024, 120);
-  g.fillStyle = '#0a2f7a'; g.font = '800 58px Arial'; g.textAlign = 'center';
-  g.fillText('NEW • ADVANCED FORMULA', 512, 82);
-  // brand
-  g.shadowColor = 'rgba(0,0,0,.35)'; g.shadowBlur = 24;
-  g.fillStyle = '#ffffff'; g.font = '900 230px Arial Black, Arial';
-  g.fillText('NIKAND', 512, 430);
-  g.shadowBlur = 0;
-  g.fillStyle = '#bff3ff'; g.font = '700 74px Arial';
-  g.fillText('DETERGENT POWDER', 512, 540);
-  // badge
-  g.fillStyle = '#ff3b5c'; g.beginPath(); g.arc(820, 700, 120, 0, 7); g.fill();
-  g.fillStyle = '#fff'; g.font = '900 64px Arial'; g.fillText('2X', 820, 690);
-  g.font = '700 36px Arial'; g.fillText('CLEAN', 820, 740);
-  g.fillStyle = '#ffffff'; g.font = '700 56px Arial';
-  g.fillText('Super White • Fresh Fragrance', 512, 1260);
-  g.fillStyle = '#ffcf2e'; g.font = '900 96px Arial'; g.fillText('1 kg', 512, 1380);
-  sparkle(g, 160, 640, 50); sparkle(g, 240, 760, 28); sparkle(g, 900, 300, 36);
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t;
-}
-function backLabel() {
-  const c = document.createElement('canvas'); c.width = 1024; c.height = 1434;
-  const g = c.getContext('2d');
-  g.fillStyle = '#0a4fc4'; g.fillRect(0, 0, 1024, 1434);
-  g.fillStyle = '#fff'; g.font = '900 120px Arial'; g.textAlign = 'center'; g.fillText('NIKAND', 512, 220);
-  g.font = '700 52px Arial'; g.textAlign = 'left';
-  ['✓ Tough stain removal', '✓ Bright whites & colours', '✓ Gentle on hands', '✓ Long-lasting fragrance', '✓ Hand wash & machine']
-    .forEach((s, i) => g.fillText(s, 120, 420 + i * 120));
-  g.fillStyle = '#ffcf2e'; g.fillRect(0, 1314, 1024, 120);
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
-}
-function sideLabel() {
-  const c = document.createElement('canvas'); c.width = 400; c.height = 1434;
-  const g = c.getContext('2d');
-  const lg = g.createLinearGradient(0, 0, 400, 0); lg.addColorStop(0, '#063a9a'); lg.addColorStop(1, '#0a4fc4');
-  g.fillStyle = lg; g.fillRect(0, 0, 400, 1434);
-  g.save(); g.translate(200, 717); g.rotate(-Math.PI / 2);
-  g.fillStyle = '#fff'; g.font = '900 150px Arial'; g.textAlign = 'center'; g.fillText('NIKAND', 0, 52); g.restore();
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
-}
-function cakeLabel() {
-  const c = document.createElement('canvas'); c.width = 1024; c.height = 512;
-  const g = c.getContext('2d');
-  const lg = g.createLinearGradient(0, 0, 1024, 512); lg.addColorStop(0, '#16b8f0'); lg.addColorStop(1, '#0a4fc4');
-  g.fillStyle = lg; g.fillRect(0, 0, 1024, 512);
-  g.fillStyle = 'rgba(255,255,255,.18)'; g.beginPath(); g.ellipse(512, 256, 470, 200, 0, 0, 7); g.fill();
-  g.fillStyle = '#fff'; g.font = '900 170px Arial Black, Arial'; g.textAlign = 'center'; g.fillText('NIKAND', 512, 270);
-  g.fillStyle = '#ffcf2e'; g.font = '800 64px Arial'; g.fillText('DETERGENT CAKE', 512, 370);
-  sparkle(g, 140, 120, 40); sparkle(g, 900, 400, 30);
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+  scene.background = canvasTex(c);
 }
 
-// ---------- pouch (built from the real wrapper design) ----------
+// ---------- textures ----------
 const loader = new THREE.TextureLoader();
 const loadTex = (u) => new Promise((res) => loader.load(u, (t) => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; res(t); }));
 const [frontTex, backTex, cakeTex] = await Promise.all([loadTex('front.png'), loadTex('back.png'), loadTex('cake.png')]);
 
+// ---------- pouch ----------
 const PW = 1.6, PH = 2.31, D = 0.24, SEAL = 0.07;
 function pouchHalf() {
   const g = new THREE.PlaneGeometry(PW, PH, 80, 110);
   const p = g.attributes.position;
   for (let i = 0; i < p.count; i++) {
     const x = p.getX(i), y = p.getY(i);
-    const u = x / (PW / 2), v = y / (PH / 2);
-    const inner = 1 - SEAL;
-    let fv = Math.abs(v) < inner ? Math.pow(1 - Math.pow(Math.abs(v) / inner, 4), 0.55) : 0;
+    const u = x / (PW / 2), v = y / (PH / 2), inner = 1 - SEAL;
+    const fv = Math.abs(v) < inner ? Math.pow(1 - Math.pow(Math.abs(v) / inner, 4), 0.55) : 0;
     const fu = Math.pow(Math.max(0, 1 - u * u), 0.42);
     let z = D * fu * fv;
-    // seal crimp lines + slight wrinkles near the seal
     if (Math.abs(v) >= inner) z = 0.006 * Math.sin(y * 260) * Math.min(1, (Math.abs(v) - inner) * 40);
     else z += 0.012 * Math.sin(u * 14 + v * 3) * Math.pow(Math.abs(v) / inner, 8);
-    // the pouch pulls in a little at the sides where it is puffed
     p.setXYZ(i, x * (1 - 0.07 * fu * fv), y * (1 - 0.02 * fu), z);
   }
   g.computeVertexNormals();
   return g;
 }
-const pouchMat = (map) => new THREE.MeshPhysicalMaterial({ map, roughness: 0.38, metalness: 0.0, clearcoat: 0.6, clearcoatRoughness: 0.25, alphaTest: 0.5, side: THREE.DoubleSide });
-const front = new THREE.Mesh(pouchHalf(), pouchMat(frontTex));
-const back = new THREE.Mesh(pouchHalf(), pouchMat(backTex)); back.rotation.y = Math.PI;
-const pack = new THREE.Group(); pack.add(front, back); pack.scale.setScalar(1.38);
+const pouchMat = (map) => new THREE.MeshPhysicalMaterial({ map, roughness: 0.38, clearcoat: 0.6, clearcoatRoughness: 0.25, alphaTest: 0.5, side: THREE.DoubleSide });
+const pack = new THREE.Group();
+{
+  const front = new THREE.Mesh(pouchHalf(), pouchMat(frontTex));
+  const back = new THREE.Mesh(pouchHalf(), pouchMat(backTex)); back.rotation.y = Math.PI;
+  pack.add(front, back); pack.scale.setScalar(1.38);
+}
 const packGroup = new THREE.Group(); packGroup.add(pack); scene.add(packGroup);
+const POUCH_TOP = 1.55; // local distance from pouch centre to its top seal (after the 1.38 scale)
 
-// ---------- cake (wrapped bar) ----------
-const cakeGeo = new RoundedBoxGeometry(2.0, 1.0, 0.5, 6, 0.12);
-const cakeSide = new THREE.MeshPhysicalMaterial({ color: '#0072b9', roughness: 0.35, clearcoat: 0.8 });
-const cakeFace = pouchMat(cakeTex);
-const cake = new THREE.Mesh(cakeGeo, [cakeSide, cakeSide, cakeSide, cakeSide, cakeFace, cakeFace]);
-const cakeGroup = new THREE.Group(); cakeGroup.add(cake); scene.add(cakeGroup);
+// ---------- cake ----------
+const cakeGroup = new THREE.Group();
+{
+  const side = new THREE.MeshPhysicalMaterial({ color: '#0072b9', roughness: 0.35, clearcoat: 0.8 });
+  const face = pouchMat(cakeTex);
+  cakeGroup.add(new THREE.Mesh(new RoundedBoxGeometry(2.0, 1.0, 0.5, 6, 0.12), [side, side, side, side, face, face]));
+}
+scene.add(cakeGroup);
+
+// ---------- washing machine ----------
+const MW = 2.3, MH = 2.7, MD = 1.9, DOOR_Y = -0.3, DOOR_R = 0.78;
+const machine = new THREE.Group(); scene.add(machine);
+const doorPivot = new THREE.Group();
+const drum = new THREE.Group();
+{
+  const white = new THREE.MeshPhysicalMaterial({ color: '#f3f6fa', roughness: 0.28, clearcoat: 0.7, clearcoatRoughness: 0.2 });
+  const grey = new THREE.MeshPhysicalMaterial({ color: '#dfe5ec', roughness: 0.4 });
+  const chrome = new THREE.MeshPhysicalMaterial({ color: '#d5dde6', metalness: 0.9, roughness: 0.22 });
+  const dark = new THREE.MeshStandardMaterial({ color: '#141b28', roughness: 0.6 });
+  machine.add(new THREE.Mesh(new RoundedBoxGeometry(MW, MH, MD, 6, 0.14), white));
+  // control panel
+  const panel = new THREE.Mesh(new RoundedBoxGeometry(MW - 0.16, 0.5, 0.06, 4, 0.02), grey);
+  panel.position.set(0, MH / 2 - 0.38, MD / 2 + 0.01); machine.add(panel);
+  const drawer = new THREE.Mesh(new RoundedBoxGeometry(0.7, 0.32, 0.08, 4, 0.03), white);
+  drawer.position.set(-0.68, MH / 2 - 0.38, MD / 2 + 0.05); machine.add(drawer);
+  const [dc, dg] = mkCanvas(256, 96);
+  dg.fillStyle = '#06131f'; dg.fillRect(0, 0, 256, 96);
+  dg.fillStyle = '#4ee6ff'; dg.font = 'bold 54px Arial'; dg.textAlign = 'center'; dg.fillText('0:45', 128, 66);
+  const display = new THREE.Mesh(new THREE.PlaneGeometry(0.46, 0.17), new THREE.MeshBasicMaterial({ map: canvasTex(dc) }));
+  display.position.set(0.12, MH / 2 - 0.38, MD / 2 + 0.05); machine.add(display);
+  const knob = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.08, 32), chrome);
+  knob.rotation.x = Math.PI / 2; knob.position.set(0.72, MH / 2 - 0.38, MD / 2 + 0.07); machine.add(knob);
+  // porthole: dark drum opening + chrome rim on the body
+  const hole = new THREE.Mesh(new THREE.CircleGeometry(DOOR_R, 64), dark);
+  hole.position.set(0, DOOR_Y, MD / 2 + 0.005); machine.add(hole);
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(DOOR_R + 0.02, 0.05, 16, 64), grey);
+  rim.position.set(0, DOOR_Y, MD / 2 + 0.01); machine.add(rim);
+  drum.position.set(0, DOOR_Y, MD / 2 + 0.02); machine.add(drum);
+  // door, hinged on the left
+  doorPivot.position.set(-DOOR_R - 0.1, DOOR_Y, MD / 2 + 0.06); machine.add(doorPivot);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(DOOR_R - 0.02, 0.11, 20, 64), chrome);
+  ring.position.x = DOOR_R + 0.1; doorPivot.add(ring);
+  const glass = new THREE.Mesh(new THREE.CircleGeometry(DOOR_R - 0.08, 64), new THREE.MeshPhysicalMaterial({ color: '#bfe8ff', roughness: 0.05, transparent: true, opacity: 0.32, clearcoat: 1, depthWrite: false }));
+  glass.position.set(DOOR_R + 0.1, 0, 0.03); doorPivot.add(glass);
+  const handle = new THREE.Mesh(new RoundedBoxGeometry(0.1, 0.36, 0.08, 3, 0.03), chrome);
+  handle.position.set(2 * DOOR_R + 0.14, 0, 0.04); doorPivot.add(handle);
+  // soft shadow on the floor
+  const [sc, sg] = mkCanvas(256, 256);
+  const rg = sg.createRadialGradient(128, 128, 10, 128, 128, 128); rg.addColorStop(0, 'rgba(0,0,0,.55)'); rg.addColorStop(1, 'rgba(0,0,0,0)');
+  sg.fillStyle = rg; sg.fillRect(0, 0, 256, 256);
+  const shadow = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 2.6), new THREE.MeshBasicMaterial({ map: canvasTex(sc), transparent: true, depthWrite: false }));
+  shadow.rotation.x = -Math.PI / 2; shadow.position.y = -MH / 2 - 0.01; machine.add(shadow);
+}
+
+// ---------- clothes ----------
+const CLOTH = [
+  { kind: 'tee', color: '#ffffff' }, { kind: 'shirt', color: '#8fd3ff' }, { kind: 'towel', color: '#ff9fb8' },
+  { kind: 'tee', color: '#ffd84d' }, { kind: 'pant', color: '#3e64c8' },
+];
+function clothShape(g, kind) {
+  g.beginPath();
+  if (kind === 'tee' || kind === 'shirt') {
+    g.moveTo(88, 20); g.quadraticCurveTo(128, 50, 168, 20); g.lineTo(236, 52); g.lineTo(212, 112); g.lineTo(186, 100);
+    g.lineTo(190, 290); g.lineTo(66, 290); g.lineTo(70, 100); g.lineTo(44, 112); g.lineTo(20, 52); g.closePath();
+  } else if (kind === 'pant') {
+    g.moveTo(60, 14); g.lineTo(196, 14); g.lineTo(214, 292); g.lineTo(144, 292); g.lineTo(128, 110);
+    g.lineTo(112, 292); g.lineTo(42, 292); g.closePath();
+  } else { g.rect(22, 14, 212, 278); }
+}
+function clothTexture(kind, color, dirty) {
+  const [c, g] = mkCanvas(256, 300);
+  g.save(); clothShape(g, kind); g.clip();
+  g.fillStyle = color; g.fillRect(0, 0, 256, 300);
+  const sh = g.createLinearGradient(0, 0, 256, 300); sh.addColorStop(0, 'rgba(255,255,255,.25)'); sh.addColorStop(1, 'rgba(0,0,0,.18)');
+  g.fillStyle = sh; g.fillRect(0, 0, 256, 300);
+  if (kind === 'towel') { g.fillStyle = 'rgba(255,255,255,.7)'; g.fillRect(0, 40, 256, 14); g.fillRect(0, 250, 256, 14); }
+  if (kind === 'shirt') { g.strokeStyle = 'rgba(255,255,255,.8)'; g.lineWidth = 4; g.beginPath(); g.moveTo(128, 48); g.lineTo(128, 290); g.stroke();
+    for (let y = 80; y < 290; y += 40) { g.fillStyle = '#fff'; g.beginPath(); g.arc(136, y, 4, 0, 7); g.fill(); } }
+  if (kind === 'pant') { g.fillStyle = 'rgba(0,0,0,.25)'; g.fillRect(60, 14, 136, 16); }
+  if (dirty) {
+    g.fillStyle = 'rgba(70,60,40,.25)'; g.fillRect(0, 0, 256, 300);
+    for (let i = 0; i < 9; i++) {
+      const x = 40 + rnd() * 176, y = 40 + rnd() * 230, r = 10 + rnd() * 26;
+      const m = g.createRadialGradient(x, y, 0, x, y, r); m.addColorStop(0, 'rgba(92,60,28,.85)'); m.addColorStop(1, 'rgba(92,60,28,0)');
+      g.fillStyle = m; g.beginPath(); g.ellipse(x, y, r * 1.3, r, rnd() * 3, 0, 7); g.fill();
+    }
+  }
+  g.restore();
+  g.strokeStyle = 'rgba(0,0,0,.25)'; g.lineWidth = 3; clothShape(g, kind); g.stroke();
+  return canvasTex(c);
+}
+const CW = 1.0, CH = 1.17;
+function makeCloth(def, dirty) {
+  const geo = new THREE.PlaneGeometry(CW, CH, 16, 18);
+  const base = Float32Array.from(geo.attributes.position.array);
+  const mat = new THREE.MeshStandardMaterial({ map: clothTexture(def.kind, def.color, dirty), roughness: 0.9, alphaTest: 0.5, side: THREE.DoubleSide });
+  const mesh = new THREE.Mesh(geo, mat);
+  const grp = new THREE.Group(); grp.add(mesh); scene.add(grp);
+  return { grp, mesh, geo, base, seed: rnd() * 6.28 };
+}
+// crumple (k=1) or hang-and-wave (k=0) the cloth. Hanging clothes are anchored at their top edge.
+function shapeCloth(c, crumple, phase) {
+  const p = c.geo.attributes.position, b = c.base;
+  for (let i = 0; i < p.count; i++) {
+    const x = b[i * 3], y = b[i * 3 + 1];
+    const d = (CH / 2 - y) / CH; // 0 at top, 1 at bottom
+    const wz = 0.16 * Math.pow(d, 1.2) * Math.sin(2.4 * x + phase + c.seed) + 0.03 * Math.sin(5 * y + phase * 2 + c.seed);
+    const wx = 0.05 * d * Math.sin(phase + c.seed);
+    const cz = 0.22 * Math.sin(x * 4 + c.seed) * Math.cos(y * 3.3 + c.seed);
+    const cs = 1 - 0.35 * crumple * (0.5 + 0.5 * Math.sin(x * 3 + y * 2 + c.seed));
+    p.setXYZ(i, (x + wx * (1 - crumple)) * cs, y * (1 - 0.25 * crumple), wz * (1 - crumple) + cz * crumple);
+  }
+  p.needsUpdate = true; c.geo.computeVertexNormals();
+}
+const dirty = CLOTH.map((d) => makeCloth(d, true));
+const clean = CLOTH.map((d) => makeCloth(d, false));
+
+// tumbling clothes seen through the glass
+const drumBlobs = CLOTH.map((d, i) => {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(0.22, 20, 12), new THREE.MeshStandardMaterial({ color: d.color, roughness: 0.9 }));
+  m.scale.set(1.3, 0.8, 0.12); drum.add(m); return m;
+});
+const foam = [];
+for (let i = 0; i < 26; i++) {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(1, 14, 10), new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.4, transparent: true, opacity: 0.9 }));
+  const a = rnd() * 6.28, r = Math.sqrt(rnd()) * 0.6;
+  foam.push({ m, a, r, s: 0.05 + rnd() * 0.09 }); m.scale.set(1, 1, 0.3); drum.add(m);
+}
+
+// ---------- clothesline ----------
+const LINE_HALF = P(3.4, 2.2), SAG = 0.22;
+const lineGroup = new THREE.Group(); scene.add(lineGroup);
+const ropeY = (x) => SAG * Math.pow(x / LINE_HALF, 2) - SAG;
+{
+  const pts = []; for (let i = 0; i <= 40; i++) { const x = -LINE_HALF + (2 * LINE_HALF * i) / 40; pts.push(new THREE.Vector3(x, ropeY(x), 0)); }
+  lineGroup.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 80, 0.018, 8), new THREE.MeshStandardMaterial({ color: '#f2f2f2', roughness: 0.6 })));
+  const wood = new THREE.MeshStandardMaterial({ color: '#9b6b3d', roughness: 0.7 });
+  for (const s of [-1, 1]) {
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.07, 6, 16), wood);
+    pole.position.set(s * LINE_HALF, -3 + 0.1, 0); lineGroup.add(pole);
+  }
+}
+const SPOTS = P([-2.6, -1.3, 0, 1.3, 2.6], [-1.7, -0.85, 0, 0.85, 1.7]);
+const CLOTH_SCALE = P(1.0, 0.8);
+const pegMat = new THREE.MeshStandardMaterial({ color: '#ffcf2e', roughness: 0.5 });
+clean.forEach((c) => {
+  for (const s of [-0.3, 0.3]) {
+    const peg = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.16, 0.06), pegMat);
+    peg.position.set(s, CH / 2 - 0.02, 0.03); c.grp.add(peg);
+  }
+});
 
 // ---------- lights ----------
-scene.add(new THREE.AmbientLight('#cfe3ff', 0.35));
-const key = new THREE.DirectionalLight('#ffffff', 1.6); key.position.set(3, 4, 5); scene.add(key);
-const rim = new THREE.DirectionalLight('#5fe3ff', 2.0); rim.position.set(-4, 2, -3); scene.add(rim);
+scene.add(new THREE.AmbientLight('#cfe3ff', 0.4));
+const key = new THREE.DirectionalLight('#ffffff', 1.7); key.position.set(3, 4, 5); scene.add(key);
+const rimL = new THREE.DirectionalLight('#5fe3ff', 2.0); rimL.position.set(-4, 2, -3); scene.add(rimL);
 const fill = new THREE.PointLight('#2a8bff', 12, 20); fill.position.set(-3, -2, 4); scene.add(fill);
 
 // ---------- bubbles ----------
-const rnd = (() => { let s = 7; return () => (s = (s * 16807) % 2147483647) / 2147483647; })();
-const bubbleTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
+const bubbleTex = (() => { const [c, g] = mkCanvas(128, 128);
   const r = g.createRadialGradient(64, 64, 40, 64, 64, 62); r.addColorStop(0, 'rgba(255,255,255,0.02)'); r.addColorStop(0.8, 'rgba(180,235,255,0.25)'); r.addColorStop(1, 'rgba(255,255,255,0.75)');
   g.fillStyle = r; g.beginPath(); g.arc(64, 64, 62, 0, 7); g.fill();
   g.fillStyle = 'rgba(255,255,255,0.85)'; g.beginPath(); g.ellipse(44, 40, 14, 8, -0.7, 0, 7); g.fill();
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; })();
+  return canvasTex(c); })();
 const bubbleMat = new THREE.SpriteMaterial({ map: bubbleTex, transparent: true, depthWrite: false, opacity: 0.8 });
 const bubbles = [];
-for (let i = 0; i < 40; i++) {
+for (let i = 0; i < 34; i++) {
   const m = new THREE.Sprite(bubbleMat);
-  const b = { m, x: (rnd() - .5) * 12, y: (rnd() - .5) * 8, z: -3.5 + rnd() * 3.6, r: 0.12 + rnd() * 0.5, sp: 0.5 + rnd(), ph: rnd() * 6 };
-  scene.add(m); bubbles.push(b);
+  bubbles.push({ m, x: (rnd() - .5) * 12, y: (rnd() - .5) * 8, z: -3.5 + rnd() * 3.0, r: 0.12 + rnd() * 0.45, sp: 0.5 + rnd(), ph: rnd() * 6 });
+  scene.add(m);
 }
 
-// ---------- powder particles ----------
-const N = 4000;
+// ---------- powder stream ----------
+const N = 2200;
 const pGeo = new THREE.BufferGeometry();
-const pos = new Float32Array(N * 3), col = new Float32Array(N * 3);
-const seeds = [];
+const pos = new Float32Array(N * 3), col = new Float32Array(N * 3), seeds = [];
 for (let i = 0; i < N; i++) {
-  const th = rnd() * Math.PI * 2, ph = Math.acos(2 * rnd() - 1);
-  const sp = 0.6 + Math.pow(rnd(), 1.6) * 3.6;
-  seeds.push({ dx: Math.sin(ph) * Math.cos(th) * sp, dy: Math.abs(Math.cos(ph)) * sp * 1.1 + 0.6, dz: Math.sin(ph) * Math.sin(th) * sp * 0.7, d: rnd() * 0.15 });
-  const c = rnd(); const cc = c < 0.55 ? [1, 1, 1] : c < 0.85 ? [0.45, 0.85, 1] : [0.2, 0.5, 1];
-  col.set(cc, i * 3);
+  seeds.push({ e: rnd(), jx: rnd() - 0.5, jy: rnd() - 0.5, jz: rnd() - 0.5 });
+  const c = rnd(); col.set(c < 0.6 ? [1, 1, 1] : c < 0.88 ? [0.45, 0.85, 1] : [0.2, 0.5, 1], i * 3);
 }
 pGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
 pGeo.setAttribute('color', new THREE.BufferAttribute(col, 3));
-const dot = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d');
+const dot = (() => { const [c, g] = mkCanvas(64, 64);
   const r = g.createRadialGradient(32, 32, 0, 32, 32, 32); r.addColorStop(0, 'rgba(255,255,255,1)'); r.addColorStop(.4, 'rgba(255,255,255,.8)'); r.addColorStop(1, 'rgba(255,255,255,0)');
   g.fillStyle = r; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
-const pMat = new THREE.PointsMaterial({ size: 0.07, map: dot, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
-const powder = new THREE.Points(pGeo, pMat); scene.add(powder);
+const pMat = new THREE.PointsMaterial({ size: 0.06, map: dot, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+const powder = new THREE.Points(pGeo, pMat); powder.frustumCulled = false; scene.add(powder);
 
 // ---------- camera ----------
-const camera = new THREE.PerspectiveCamera(portrait ? 52 : 35, W / H, 0.1, 100);
+const camera = new THREE.PerspectiveCamera(P(35, 52), W / H, 0.1, 100);
 
 // ---------- timeline helpers ----------
 const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
@@ -202,60 +276,163 @@ const seg = (t, a, b) => clamp((t - a) / (b - a));
 const ease = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
 const easeOut = (x) => 1 - Math.pow(1 - x, 3);
 const lerp = (a, b, x) => a + (b - a) * x;
+// keyframe track: keys = [[t, {prop: value}], ...]; missing props carry over from the previous key
+function track(t, keys) {
+  const full = []; let prev = {};
+  for (const [kt, v] of keys) { prev = { ...prev, ...v }; full.push([kt, prev]); }
+  if (t <= full[0][0]) return { ...full[0][1] };
+  for (let i = 0; i < full.length - 1; i++) {
+    const [t0, a] = full[i], [t1, b] = full[i + 1];
+    if (t <= t1) { const k = ease(seg(t, t0, t1)); const o = {}; for (const p in b) o[p] = lerp(a[p] ?? b[p], b[p], k); return o; }
+  }
+  return { ...full[full.length - 1][1] };
+}
+const apply = (obj, s) => { obj.position.set(s.x ?? 0, s.y ?? 0, s.z ?? 0); obj.rotation.set(s.rx ?? 0, s.ry ?? 0, s.rz ?? 0); obj.scale.setScalar(s.s ?? 1); };
+const TAU = Math.PI * 2;
+function bezier(a, c, b, k) { const u = 1 - k; return new THREE.Vector3(u * u * a.x + 2 * u * k * c.x + k * k * b.x, u * u * a.y + 2 * u * k * c.y + k * k * b.y, u * u * a.z + 2 * u * k * c.z + k * k * b.z); }
+
+const MACHINE_Y = P(-0.45, 0.55), MACHINE_S = P(0.82, 0.92);
+const LINE_Y = P(1.05, 1.9);
+const tmp = new THREE.Vector3();
 
 window.renderAt = (t) => {
-  // 0-0.22 intro rise + turn to front
-  const a = ease(seg(t, 0, 0.22));
-  // 0.22-0.48 full spin
-  const s = ease(seg(t, 0.22, 0.48));
-  // 0.48-0.74 tilt + powder burst
-  const b = seg(t, 0.48, 0.74);
-  // 0.74-1 pack aside, cake in
-  const e = ease(seg(t, 0.74, 0.96));
+  // wave phase: an exact number of waves inside the loop window, so the window repeats seamlessly
+  const phase = TAU * WAVES * (t - LOOP0) / (LOOP1 - LOOP0);
+  const inLoop = t >= LOOP0 && t <= LOOP1;
 
-  const sideX = portrait ? 0 : -1.55, sideY = portrait ? 1.6 : -0.25;
-  // on wide screens slide the pack away from the caption (caption left, then right)
-  const shift = portrait ? 0 : 1.05 * (ease(seg(t, 0.2, 0.3)) - 2 * ease(seg(t, 0.45, 0.53)) + ease(seg(t, 0.72, 0.8)));
-  const tilt = Math.sin(easeOut(b) * Math.PI) * 0.35;
-  packGroup.position.set(lerp(0, sideX, e) + shift, lerp(-4.2, 0, a) + Math.sin(t * 12) * 0.03 + lerp(0, sideY, e), 0);
-  packGroup.rotation.set(lerp(0.5, 0.05, a) - tilt * 0.6, lerp(-Math.PI * 0.85, 0, a) + s * Math.PI * 2 + lerp(0, portrait ? -0.25 : 0.35, e), lerp(0.25, 0, a) + tilt);
-  const ps = lerp(0.9, 1, a) * lerp(1, portrait ? 0.62 : 0.85, e);
-  packGroup.scale.setScalar(ps);
+  // ----- pouch -----
+  const pk = track(t, [
+    [0.00, { x: 0, y: -4.2, z: 0, rx: 0.5, ry: -2.67, rz: 0.25, s: 0.9 }],
+    [0.10, { y: 0, rx: 0.05, ry: 0, rz: 0, s: 1 }],
+    [0.20, { ry: TAU }],
+    [0.28, { x: P(-2.9, -1.45), y: P(1.3, 3.0), ry: TAU + 0.3, rx: 0, s: P(0.45, 0.36) }],
+    [0.44, { ry: TAU + 0.2 }],
+    [0.50, { x: P(2.05, 0.85), y: P(1.75, 2.35), z: 0.6, ry: TAU, rz: 2.45, s: P(0.5, 0.42) }],
+    [0.565, {}],
+    [0.62, { x: P(-2.9, -1.45), y: P(1.3, 3.0), z: 0, rz: 0, s: P(0.45, 0.36) }],
+    [0.68, { y: 7 }],
+    [0.885, {}],
+    [0.905, { x: P(-1.55, 0), y: P(-5, 7), ry: TAU - 0.6 }],
+    [0.96, { x: P(-1.55, 0), y: P(-0.25, 1.9), ry: TAU + P(0.35, -0.25), rz: 0, s: P(0.85, 0.62) }],
+  ]);
+  pk.y += Math.sin(t * 40) * 0.03;
+  apply(packGroup, pk);
+  packGroup.visible = pk.y < 6;
 
-  cakeGroup.visible = e > 0.001;
-  const cx = portrait ? 0 : 1.75, cy = portrait ? -1.4 : -0.6;
-  cakeGroup.position.set(lerp(portrait ? 0 : 6, cx, e), lerp(portrait ? -6 : 0.4, cy, e), 0.4);
-  cakeGroup.rotation.set(lerp(1.2, 0.18, e), lerp(-2.5, -0.3, e), lerp(0.6, -0.08, e));
-  cakeGroup.scale.setScalar(portrait ? 0.95 : 1.0);
+  // ----- washing machine -----
+  // on wide screens the machine steps aside for the caption (right, left, right)
+  const mk = track(t, [[0.20, { x: P(-0.6, 0), y: -7, ry: -0.5 }], [0.29, { y: MACHINE_Y, ry: 0 }], [0.45, {}], [0.49, { x: P(0.9, 0) }], [0.575, {}], [0.6, { x: P(-0.6, 0) }], [0.68, {}], [0.76, { y: -7, ry: 0.3 }]]);
+  const wash = seg(t, 0.6, 0.66);
+  mk.x += Math.sin(t * 2400) * 0.025 * Math.sin(wash * Math.PI);
+  mk.s = MACHINE_S; mk.ry = (mk.ry || 0) + P(-0.12, 0);
+  apply(machine, mk);
+  machine.visible = mk.y > -6.9;
+  const doorOpen = track(t, [[0.28, { a: 0 }], [0.31, { a: 1 }], [0.565, {}], [0.6, { a: 0 }], [0.66, {}], [0.69, { a: 1 }]]).a;
+  doorPivot.rotation.y = -1.9 * doorOpen;
+  machine.updateMatrixWorld(true);
+  const doorWorld = drum.getWorldPosition(new THREE.Vector3());
 
-  // powder burst from top of pack
-  const p = powder.geometry.attributes.position;
-  const top = new THREE.Vector3(0, 1.5, 0).applyEuler(packGroup.rotation).multiplyScalar(ps).add(packGroup.position);
-  for (let i = 0; i < N; i++) {
-    const sd = seeds[i];
-    const k = clamp((b - sd.d) / (1 - sd.d));
+  // drum contents
+  const arrived = dirty.filter((_, i) => t > 0.30 + i * 0.024 + 0.08).length;
+  const cleanLeft = clean.filter((_, i) => t < 0.685 + i * 0.01).length;
+  const drumSpin = t * 6 + easeOut(wash) * 26;
+  drumBlobs.forEach((m, i) => {
+    m.visible = i < arrived && i < (t < 0.68 ? 5 : cleanLeft);
+    const a = drumSpin + i * 1.9 + Math.sin(i * 3.7), r = [0.42, 0.18, 0.5, 0.3, 0.45][i];
+    m.position.set(Math.cos(a) * r, Math.sin(a) * r - 0.12, 0.02 + i * 0.004); m.rotation.z = a * 1.3 + i;
+    m.scale.set([1.4, 1.1, 1.2, 0.9, 1.5][i], [0.7, 0.9, 0.6, 0.8, 0.55][i], 0.12);
+    // colours wash clean
+    m.material.color.set(CLOTH[i].color).lerp(new THREE.Color('#6b5638'), 0.55 * (1 - seg(t, 0.6, 0.66)));
+  });
+  const foamAmt = seg(t, 0.5, 0.6) * (1 - seg(t, 0.66, 0.69));
+  foam.forEach((f, i) => {
+    const a = f.a + drumSpin * 0.8;
+    f.m.position.set(Math.cos(a) * f.r, Math.sin(a) * f.r, 0.05);
+    f.m.scale.set(f.s * foamAmt, f.s * foamAmt, 0.3 * f.s * foamAmt); f.m.visible = foamAmt > 0.01;
+  });
+
+  // ----- dirty clothes fly into the door -----
+  dirty.forEach((c, i) => {
+    const t0 = 0.30 + i * 0.024, k = seg(t, t0, t0 + 0.08);
+    c.grp.visible = k > 0 && k < 1;
+    if (!c.grp.visible) return;
+    const side = i % 2 ? 1 : -1;
+    const start = new THREE.Vector3(side * P(4.6, 3.0), P(1.2, 2.6) - i * 0.25, 2.2);
+    const ctrl = new THREE.Vector3(side * P(2.4, 1.4), P(2.4, 3.6), 2.6);
     const kk = easeOut(k);
-    const fall = k * k * 1.6;
-    p.setXYZ(i, top.x + sd.dx * kk, top.y + sd.dy * kk - fall, top.z + sd.dz * kk);
-  }
-  p.needsUpdate = true;
-  pMat.opacity = b <= 0 ? 0 : clamp(Math.min(b * 6, (1 - b) * 2.2) + (t > 0.74 ? 0 : 0));
-  pMat.size = lerp(0.05, 0.09, b);
-  powder.visible = b > 0 && b < 1;
+    c.grp.position.copy(bezier(start, ctrl, doorWorld.clone().add(tmp.set(0, 0, 0.3)), kk));
+    c.grp.rotation.set(0.3 * Math.sin(k * 6 + i), 0.5 * Math.sin(k * 5 + i) * side, k * 4 * side + i * 0.5);
+    c.grp.scale.setScalar(lerp(P(1.0, 0.8), 0.12, Math.pow(kk, 4)));
+    shapeCloth(c, 0.35 + 0.65 * k, k * 10);
+  });
 
-  // bubbles: drift upward, fade in after intro
-  const bo = clamp(seg(t, 0.12, 0.3));
+  // ----- powder stream from the pouch into the open door -----
+  const pour = seg(t, 0.5, 0.57);
+  powder.visible = pour > 0 && pour < 1;
+  if (powder.visible) {
+    const top = new THREE.Vector3(0, POUCH_TOP, 0).applyEuler(packGroup.rotation).multiplyScalar(pk.s).add(packGroup.position);
+    const target = doorWorld.clone().add(tmp.set(0.05, 0.05, 0.25));
+    const p = powder.geometry.attributes.position, LIFE = 0.28;
+    for (let i = 0; i < N; i++) {
+      const sd = seeds[i], age = (pour - sd.e * (1 - LIFE)) / LIFE;
+      if (age < 0 || age > 1) { p.setXYZ(i, 0, -50, 0); continue; }
+      const spread = 0.03 + 0.18 * age;
+      p.setXYZ(i,
+        lerp(top.x, target.x, age) + sd.jx * spread,
+        top.y + (target.y - top.y) * age * age + Math.sin(age * Math.PI) * 0.25 + sd.jy * spread,
+        lerp(top.z, target.z, age) + sd.jz * spread);
+    }
+    p.needsUpdate = true;
+    pMat.opacity = Math.min(1, pour * 8, (1 - pour) * 8);
+  }
+
+  // ----- clothesline + clean clothes -----
+  const lk = track(t, [[0.66, { y: 7 }], [0.75, { y: LINE_Y }], [0.885, {}], [0.95, { y: 8 }]]);
+  lk.z = -0.2; apply(lineGroup, lk);
+  lineGroup.visible = t > 0.665 && t < 0.95;
+  lineGroup.updateMatrixWorld(true);
+  clean.forEach((c, i) => {
+    const t0 = 0.685 + i * 0.01, k = seg(t, t0, t0 + 0.045);
+    c.grp.visible = k > 0 && lineGroup.visible;
+    if (!c.grp.visible) return;
+    const sx = SPOTS[i];
+    const anchor = new THREE.Vector3(sx, ropeY(sx) + 0.02, 0.05).applyMatrix4(lineGroup.matrixWorld);
+    const hang = anchor.clone().add(tmp.set(0, -CH / 2 * CLOTH_SCALE, 0));
+    const kk = easeOut(k);
+    if (k < 1) {
+      c.grp.position.copy(bezier(doorWorld.clone().add(tmp.set(0, 0, 0.3)), new THREE.Vector3(sx * 0.6, hang.y + 1.6, 1.2), hang, kk));
+      c.grp.rotation.set(0, (1 - kk) * 3, (1 - kk) * 4 * (i % 2 ? 1 : -1));
+      c.grp.scale.setScalar(lerp(0.12, CLOTH_SCALE, kk));
+    } else {
+      c.grp.position.copy(hang); c.grp.rotation.set(0, 0, 0); c.grp.scale.setScalar(CLOTH_SCALE);
+    }
+    shapeCloth(c, 1 - kk, phase);
+  });
+
+  // ----- cake -----
+  const ck = track(t, [
+    [0.886, { x: P(6, 0), y: P(-0.6, -7), z: 0.4, rx: 1.2, ry: -2.5, rz: 0.6, s: P(1, 0.95) }],
+    [0.96, { x: P(1.75, 0), y: P(-0.6, -0.75), rx: 0.18, ry: -0.3, rz: -0.08 }],
+  ]);
+  apply(cakeGroup, ck);
+  cakeGroup.visible = t > 0.886;
+
+  // ----- bubbles (frozen inside the loop window, with a periodic bob) -----
+  const bt = t < LOOP0 ? t : t < LOOP1 ? LOOP0 : t - (LOOP1 - LOOP0);
+  const bo = seg(t, 0.06, 0.2);
   bubbles.forEach((q) => {
-    const y = ((q.y + 4 + t * 6 * q.sp) % 8) - 4;
-    q.m.position.set(q.x * (portrait ? 0.55 : 1) + Math.sin(t * 8 + q.ph) * 0.2, y * (portrait ? 1.5 : 1), q.z);
+    const y = ((q.y + 4 + bt * 6 * q.sp) % 8) - 4;
+    const bob = inLoop ? 0.12 * Math.sin(phase / WAVES + q.ph) : 0;
+    q.m.position.set(q.x * P(1, 0.55) + Math.sin(bt * 8 + q.ph) * 0.2, y * P(1, 1.5) + bob, q.z);
     q.m.scale.setScalar(q.r * 2 * (0.3 + 0.7 * bo));
   });
-  bubbleMat.opacity = 0.8 * bo;
+  bubbleMat.opacity = 0.75 * bo;
 
-  // camera: slow dolly
-  const cz = portrait ? 9.2 : 8.2;
-  camera.position.set(Math.sin(t * Math.PI) * 0.8, lerp(0.4, 0.15, t), lerp(cz + 1, cz - 0.9, ease(seg(t, 0, 0.5))) + lerp(0, 1.1, e));
-  camera.lookAt(0, 0, 0);
+  // ----- camera (still during the loop window) -----
+  const cz = P(8.4, 9.4);
+  const cam = track(t, [[0, { x: 0, y: 0.4, z: cz + 1 }], [0.2, { y: 0.2, z: cz - 0.6 }], [0.28, { y: 0.15, z: cz }], [0.885, {}], [1.0, { z: cz + 0.3 }]]);
+  camera.position.set(cam.x, cam.y, cam.z);
+  camera.lookAt(0, cam.y - 0.15, 0);
 
   renderer.render(scene, camera);
 };
