@@ -8,7 +8,8 @@ As you scroll, a 3D animation of the Nikand pouch plays like a video. It is a se
 
 - `index.html`, `style.css`, `main.js`: the website (plain static site, no build step).
 - `frames/desktop/` (1280x720) and `frames/mobile/` (720x1280): the animation frames. Portrait screens load the mobile set.
-- `assets/wrapper-design.jpg`: the original pouch wrapper design (340 x 215 mm).
+- `assets/pouch-mockup.png`: the pouch front/back design used for the 3D model (`tools/render/front.png`, `back.png` are cut from it).
+- `assets/wrapper-design.jpg`: the earlier flat wrapper dieline (340 x 215 mm).
 - `tools/render/`: the Three.js scene that builds the 3D pouch from the wrapper design and renders the frames.
 
 ## Run locally
@@ -20,7 +21,7 @@ python3 -m http.server 8000
 
 ## Re-render the frames
 
-`front.png`, `back.png` and `cake.png` in `tools/render/` are cut from the wrapper design. To change the pack, replace them, then:
+`front.png` and `back.png` in `tools/render/` are cut from the pouch mockup (background made transparent); `cake.png` uses the logo from the wrapper. To change the pack, replace them, then:
 
 ```bash
 cd tools/render
