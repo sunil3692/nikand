@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="hi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Nikand Detergent Powder & Cake</title>
+  <meta name="description" content="Nikand Detergent Powder aur Detergent Cake: safedi jo chamke, daag jo mitein.">
+  <meta name="theme-color" content="#04122f">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <link rel="preload" as="image" href="frames/desktop/0001.webp" media="(min-aspect-ratio: 1/1)">
+  <link rel="preload" as="image" href="frames/mobile/0001.webp" media="(max-aspect-ratio: 1/1)">
+</head>
+<body>
+  <header class="nav">
+    <a href="#top" class="logo">NIKAND</a>
+    <nav>
+      <a href="#products">Products</a>
+      <a href="#why">Kyun Nikand</a>
+      <a href="#contact" class="btn btn-small">Order karein</a>
+    </nav>
+  </header>
+
+  <!-- Scroll video: frames are drawn on the canvas as you scroll -->
+  <section class="story" id="top">
+    <div class="stage">
+      <canvas id="seq" aria-label="Nikand detergent pack animation"></canvas>
+      <div class="loader" id="loader"><span id="loaderPct">0%</span></div>
+
+      <div class="cap cap-bottom" data-from="0" data-to="0.17">
+        <p class="eyebrow">3 in 1 Laundry Detergent Powder</p>
+        <h1>NIKAND</h1>
+        <p class="lead">Advance Generation Formula. Safedi jo chamke, daag jo mitein.</p>
+        <p class="scroll-hint">Scroll karein ↓</p>
+      </div>
+      <div class="cap cap-left" data-from="0.24" data-to="0.45">
+        <p class="eyebrow">Enzymes &amp; Oxygen Bleach Plus</p>
+        <h2>Har daag,<br>ek baar me saaf.</h2>
+        <p>Chai, mitti, tel ya grease. Enzymes aur oxygen bleach kapde ke andar tak jaakar zidd daag nikaalte hain.</p>
+      </div>
+      <div class="cap cap-right" data-from="0.5" data-to="0.72">
+        <p class="eyebrow">3 in 1 power</p>
+        <h2>Saaf. Safed.<br>Mehakta hua.</h2>
+        <p>Safai, colour-safe whitener &amp; brightener, aur nayi khushboo. Haath se dhoyein ya machine me, dono me badhiya.</p>
+      </div>
+      <div class="cap cap-top" data-from="0.82" data-to="1.01">
+        <p class="eyebrow">Nikand family</p>
+        <h2>Powder + Cake</h2>
+        <p>Roz ke kapdon ke liye powder, collar aur cuff ke zidd daagon ke liye cake.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="products" id="products">
+    <h2 class="section-title">Hamare products</h2>
+    <div class="cards">
+      <article class="card">
+        <div class="card-img"><img src="frames/desktop/0111.webp" alt="Nikand Detergent Powder 500g pouch" loading="lazy"></div>
+        <h3>Nikand Detergent Powder</h3>
+        <p>3 in 1 Laundry Detergent. Advance Generation Formula, Enzymes &amp; Oxygen Bleach Plus, nayi khushboo ke saath.</p>
+        <ul class="sizes"><li>500 g</li><li>MRP ₹35</li></ul>
+      </article>
+      <article class="card">
+        <div class="card-img"><img src="frames/desktop/0150.webp" alt="Nikand Detergent Cake" loading="lazy"></div>
+        <h3>Nikand Detergent Cake</h3>
+        <p>Collar, cuff aur zidd daagon par seedha ragdein. Haathon par naram, daagon par sakht.</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="why" id="why">
+    <h2 class="section-title">Kyun Nikand?</h2>
+    <div class="features">
+      <div class="feature"><span class="icon">✨</span><h3>Chamakti safedi</h3><p>Colour-safe whitener aur brightener.</p></div>
+      <div class="feature"><span class="icon">🫧</span><h3>Enzymes + Oxygen Bleach</h3><p>Zidd daag bhi pehli dhulai me saaf.</p></div>
+      <div class="feature"><span class="icon">🧸</span><h3>Harsh chemical nahi</h3><p>Ghar aur bachchon ke kapdon ke liye safe.</p></div>
+      <div class="feature"><span class="icon">🌸</span><h3>Nayi khushboo</h3><p>Sookhne ke baad bhi mehke.</p></div>
+    </div>
+  </section>
+
+  <section class="contact" id="contact">
+    <h2>Dukaan ya ghar ke liye order karein</h2>
+    <p>Distributor, dealer ya retail order ke liye humse sampark karein.</p>
+    <div class="contact-actions">
+      <a class="btn" href="https://wa.me/919411950900?text=Namaste%2C%20mujhe%20Nikand%20detergent%20order%20karna%20hai" target="_blank" rel="noopener">WhatsApp par order</a>
+      <a class="btn btn-ghost" href="tel:+919411950900">Call: +91 94119 50900</a>
+    </div>
+    <p class="contact-meta"><a href="mailto:nikandindustries@gmail.com">nikandindustries@gmail.com</a></p>
+  </section>
+
+  <footer class="footer">
+    <span class="logo">NIKAND</span>
+    <span>Nikand Industries Private Limited, Mohammadpur, Labhaua, Tehsil Shikohabad, Firozabad 283135</span>
+    <span>© <span id="year"></span> Nikand™. Sabhi adhikaar surakshit.</span>
+  </footer>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>

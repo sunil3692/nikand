@@ -1,0 +1,264 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>html,body{margin:0;background:#000}canvas{display:block}</style>
+<script type="importmap">{"imports":{"three":"./node_modules/three/build/three.module.js","three/addons/":"./node_modules/three/examples/jsm/"}}</script>
+</head><body>
+<script type="module">
+import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+const params = new URLSearchParams(location.search);
+const W = +params.get('w') || 1280, H = +params.get('h') || 720;
+const portrait = H > W;
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1);
+renderer.setSize(W, H);
+renderer.toneMapping = THREE.NeutralToneMapping;
+renderer.toneMappingExposure = 0.95;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 0.45;
+
+// ---------- background ----------
+function bgTexture() {
+  const c = document.createElement('canvas'); c.width = 1024; c.height = 1024;
+  const g = c.getContext('2d');
+  const r = g.createRadialGradient(512, 430, 40, 512, 512, 760);
+  r.addColorStop(0, '#1f6fd6'); r.addColorStop(0.45, '#0b3a8a'); r.addColorStop(1, '#020c26');
+  g.fillStyle = r; g.fillRect(0, 0, 1024, 1024);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+scene.background = bgTexture();
+
+// ---------- label textures ----------
+function sparkle(g, x, y, s, a = 1) {
+  g.save(); g.globalAlpha = a; g.fillStyle = '#fff'; g.beginPath();
+  g.moveTo(x, y - s); g.quadraticCurveTo(x, y, x + s, y); g.quadraticCurveTo(x, y, x, y + s);
+  g.quadraticCurveTo(x, y, x - s, y); g.quadraticCurveTo(x, y, x, y - s); g.fill(); g.restore();
+}
+function frontLabel() {
+  const c = document.createElement('canvas'); c.width = 1024; c.height = 1434;
+  const g = c.getContext('2d');
+  const lg = g.createLinearGradient(0, 0, 0, c.height);
+  lg.addColorStop(0, '#0a4fc4'); lg.addColorStop(0.55, '#1683f0'); lg.addColorStop(1, '#063a9a');
+  g.fillStyle = lg; g.fillRect(0, 0, c.width, c.height);
+  // swoosh
+  g.save(); g.globalAlpha = 0.9;
+  const sw = g.createLinearGradient(0, 700, 1024, 1100);
+  sw.addColorStop(0, '#36e0ff'); sw.addColorStop(1, '#ffffff');
+  g.fillStyle = sw; g.beginPath(); g.moveTo(0, 980);
+  g.bezierCurveTo(300, 780, 700, 1180, 1024, 880); g.lineTo(1024, 1020);
+  g.bezierCurveTo(700, 1300, 300, 900, 0, 1110); g.closePath(); g.fill(); g.restore();
+  // bubbles
+  for (let i = 0; i < 22; i++) {
+    const x = (i * 197) % 1024, y = 200 + ((i * 331) % 700), r = 14 + (i * 7) % 40;
+    g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = 4; g.beginPath(); g.arc(x, y, r, 0, 7); g.stroke();
+    g.fillStyle = 'rgba(255,255,255,.5)'; g.beginPath(); g.arc(x - r * .35, y - r * .35, r * .18, 0, 7); g.fill();
+  }
+  // top band
+  g.fillStyle = '#ffcf2e'; g.fillRect(0, 0, 1024, 120);
+  g.fillStyle = '#0a2f7a'; g.font = '800 58px Arial'; g.textAlign = 'center';
+  g.fillText('NEW • ADVANCED FORMULA', 512, 82);
+  // brand
+  g.shadowColor = 'rgba(0,0,0,.35)'; g.shadowBlur = 24;
+  g.fillStyle = '#ffffff'; g.font = '900 230px Arial Black, Arial';
+  g.fillText('NIKAND', 512, 430);
+  g.shadowBlur = 0;
+  g.fillStyle = '#bff3ff'; g.font = '700 74px Arial';
+  g.fillText('DETERGENT POWDER', 512, 540);
+  // badge
+  g.fillStyle = '#ff3b5c'; g.beginPath(); g.arc(820, 700, 120, 0, 7); g.fill();
+  g.fillStyle = '#fff'; g.font = '900 64px Arial'; g.fillText('2X', 820, 690);
+  g.font = '700 36px Arial'; g.fillText('CLEAN', 820, 740);
+  g.fillStyle = '#ffffff'; g.font = '700 56px Arial';
+  g.fillText('Super White • Fresh Fragrance', 512, 1260);
+  g.fillStyle = '#ffcf2e'; g.font = '900 96px Arial'; g.fillText('1 kg', 512, 1380);
+  sparkle(g, 160, 640, 50); sparkle(g, 240, 760, 28); sparkle(g, 900, 300, 36);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t;
+}
+function backLabel() {
+  const c = document.createElement('canvas'); c.width = 1024; c.height = 1434;
+  const g = c.getContext('2d');
+  g.fillStyle = '#0a4fc4'; g.fillRect(0, 0, 1024, 1434);
+  g.fillStyle = '#fff'; g.font = '900 120px Arial'; g.textAlign = 'center'; g.fillText('NIKAND', 512, 220);
+  g.font = '700 52px Arial'; g.textAlign = 'left';
+  ['✓ Tough stain removal', '✓ Bright whites & colours', '✓ Gentle on hands', '✓ Long-lasting fragrance', '✓ Hand wash & machine']
+    .forEach((s, i) => g.fillText(s, 120, 420 + i * 120));
+  g.fillStyle = '#ffcf2e'; g.fillRect(0, 1314, 1024, 120);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+function sideLabel() {
+  const c = document.createElement('canvas'); c.width = 400; c.height = 1434;
+  const g = c.getContext('2d');
+  const lg = g.createLinearGradient(0, 0, 400, 0); lg.addColorStop(0, '#063a9a'); lg.addColorStop(1, '#0a4fc4');
+  g.fillStyle = lg; g.fillRect(0, 0, 400, 1434);
+  g.save(); g.translate(200, 717); g.rotate(-Math.PI / 2);
+  g.fillStyle = '#fff'; g.font = '900 150px Arial'; g.textAlign = 'center'; g.fillText('NIKAND', 0, 52); g.restore();
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+function cakeLabel() {
+  const c = document.createElement('canvas'); c.width = 1024; c.height = 512;
+  const g = c.getContext('2d');
+  const lg = g.createLinearGradient(0, 0, 1024, 512); lg.addColorStop(0, '#16b8f0'); lg.addColorStop(1, '#0a4fc4');
+  g.fillStyle = lg; g.fillRect(0, 0, 1024, 512);
+  g.fillStyle = 'rgba(255,255,255,.18)'; g.beginPath(); g.ellipse(512, 256, 470, 200, 0, 0, 7); g.fill();
+  g.fillStyle = '#fff'; g.font = '900 170px Arial Black, Arial'; g.textAlign = 'center'; g.fillText('NIKAND', 512, 270);
+  g.fillStyle = '#ffcf2e'; g.font = '800 64px Arial'; g.fillText('DETERGENT CAKE', 512, 370);
+  sparkle(g, 140, 120, 40); sparkle(g, 900, 400, 30);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+
+// ---------- pouch (built from the real wrapper design) ----------
+const loader = new THREE.TextureLoader();
+const loadTex = (u) => new Promise((res) => loader.load(u, (t) => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; res(t); }));
+const [frontTex, backTex, cakeTex] = await Promise.all([loadTex('front.png'), loadTex('back.png'), loadTex('cake.png')]);
+
+const PW = 1.6, PH = 2.15, D = 0.27, SEAL = 0.116;
+function pouchHalf() {
+  const g = new THREE.PlaneGeometry(PW, PH, 80, 110);
+  const p = g.attributes.position;
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), y = p.getY(i);
+    const u = x / (PW / 2), v = y / (PH / 2);
+    const inner = 1 - SEAL;
+    let fv = Math.abs(v) < inner ? Math.pow(1 - Math.pow(Math.abs(v) / inner, 4), 0.55) : 0;
+    const fu = Math.pow(Math.max(0, 1 - u * u), 0.42);
+    let z = D * fu * fv;
+    // seal crimp lines + slight wrinkles near the seal
+    if (Math.abs(v) >= inner) z = 0.006 * Math.sin(y * 260) * Math.min(1, (Math.abs(v) - inner) * 40);
+    else z += 0.012 * Math.sin(u * 14 + v * 3) * Math.pow(Math.abs(v) / inner, 8);
+    // the pouch pulls in a little at the sides where it is puffed
+    p.setXYZ(i, x * (1 - 0.07 * fu * fv), y * (1 - 0.02 * fu), z);
+  }
+  g.computeVertexNormals();
+  return g;
+}
+const pouchMat = (map) => new THREE.MeshPhysicalMaterial({ map, roughness: 0.3, metalness: 0.0, clearcoat: 1, clearcoatRoughness: 0.15 });
+const front = new THREE.Mesh(pouchHalf(), pouchMat(frontTex));
+const back = new THREE.Mesh(pouchHalf(), pouchMat(backTex)); back.rotation.y = Math.PI;
+const pack = new THREE.Group(); pack.add(front, back); pack.scale.setScalar(1.45);
+const packGroup = new THREE.Group(); packGroup.add(pack); scene.add(packGroup);
+
+// ---------- cake (wrapped bar) ----------
+const cakeGeo = new RoundedBoxGeometry(2.0, 1.0, 0.5, 6, 0.12);
+const cakeSide = new THREE.MeshPhysicalMaterial({ color: '#0072b9', roughness: 0.35, clearcoat: 0.8 });
+const cakeFace = pouchMat(cakeTex);
+const cake = new THREE.Mesh(cakeGeo, [cakeSide, cakeSide, cakeSide, cakeSide, cakeFace, cakeFace]);
+const cakeGroup = new THREE.Group(); cakeGroup.add(cake); scene.add(cakeGroup);
+
+// ---------- lights ----------
+scene.add(new THREE.AmbientLight('#cfe3ff', 0.35));
+const key = new THREE.DirectionalLight('#ffffff', 1.6); key.position.set(3, 4, 5); scene.add(key);
+const rim = new THREE.DirectionalLight('#5fe3ff', 2.0); rim.position.set(-4, 2, -3); scene.add(rim);
+const fill = new THREE.PointLight('#2a8bff', 12, 20); fill.position.set(-3, -2, 4); scene.add(fill);
+
+// ---------- bubbles ----------
+const rnd = (() => { let s = 7; return () => (s = (s * 16807) % 2147483647) / 2147483647; })();
+const bubbleTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
+  const r = g.createRadialGradient(64, 64, 40, 64, 64, 62); r.addColorStop(0, 'rgba(255,255,255,0.02)'); r.addColorStop(0.8, 'rgba(180,235,255,0.25)'); r.addColorStop(1, 'rgba(255,255,255,0.75)');
+  g.fillStyle = r; g.beginPath(); g.arc(64, 64, 62, 0, 7); g.fill();
+  g.fillStyle = 'rgba(255,255,255,0.85)'; g.beginPath(); g.ellipse(44, 40, 14, 8, -0.7, 0, 7); g.fill();
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; })();
+const bubbleMat = new THREE.SpriteMaterial({ map: bubbleTex, transparent: true, depthWrite: false, opacity: 0.8 });
+const bubbles = [];
+for (let i = 0; i < 40; i++) {
+  const m = new THREE.Sprite(bubbleMat);
+  const b = { m, x: (rnd() - .5) * 12, y: (rnd() - .5) * 8, z: -3.5 + rnd() * 3.6, r: 0.12 + rnd() * 0.5, sp: 0.5 + rnd(), ph: rnd() * 6 };
+  scene.add(m); bubbles.push(b);
+}
+
+// ---------- powder particles ----------
+const N = 4000;
+const pGeo = new THREE.BufferGeometry();
+const pos = new Float32Array(N * 3), col = new Float32Array(N * 3);
+const seeds = [];
+for (let i = 0; i < N; i++) {
+  const th = rnd() * Math.PI * 2, ph = Math.acos(2 * rnd() - 1);
+  const sp = 0.6 + Math.pow(rnd(), 1.6) * 3.6;
+  seeds.push({ dx: Math.sin(ph) * Math.cos(th) * sp, dy: Math.abs(Math.cos(ph)) * sp * 1.1 + 0.6, dz: Math.sin(ph) * Math.sin(th) * sp * 0.7, d: rnd() * 0.15 });
+  const c = rnd(); const cc = c < 0.55 ? [1, 1, 1] : c < 0.85 ? [0.45, 0.85, 1] : [0.2, 0.5, 1];
+  col.set(cc, i * 3);
+}
+pGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+pGeo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+const dot = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d');
+  const r = g.createRadialGradient(32, 32, 0, 32, 32, 32); r.addColorStop(0, 'rgba(255,255,255,1)'); r.addColorStop(.4, 'rgba(255,255,255,.8)'); r.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = r; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
+const pMat = new THREE.PointsMaterial({ size: 0.07, map: dot, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+const powder = new THREE.Points(pGeo, pMat); scene.add(powder);
+
+// ---------- camera ----------
+const camera = new THREE.PerspectiveCamera(portrait ? 52 : 35, W / H, 0.1, 100);
+
+// ---------- timeline helpers ----------
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+const seg = (t, a, b) => clamp((t - a) / (b - a));
+const ease = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const easeOut = (x) => 1 - Math.pow(1 - x, 3);
+const lerp = (a, b, x) => a + (b - a) * x;
+
+window.renderAt = (t) => {
+  // 0-0.22 intro rise + turn to front
+  const a = ease(seg(t, 0, 0.22));
+  // 0.22-0.48 full spin
+  const s = ease(seg(t, 0.22, 0.48));
+  // 0.48-0.74 tilt + powder burst
+  const b = seg(t, 0.48, 0.74);
+  // 0.74-1 pack aside, cake in
+  const e = ease(seg(t, 0.74, 0.96));
+
+  const sideX = portrait ? 0 : -1.55, sideY = portrait ? 1.6 : -0.25;
+  // on wide screens slide the pack away from the caption (caption left, then right)
+  const shift = portrait ? 0 : 1.05 * (ease(seg(t, 0.2, 0.3)) - 2 * ease(seg(t, 0.45, 0.53)) + ease(seg(t, 0.72, 0.8)));
+  const tilt = Math.sin(easeOut(b) * Math.PI) * 0.35;
+  packGroup.position.set(lerp(0, sideX, e) + shift, lerp(-4.2, 0, a) + Math.sin(t * 12) * 0.03 + lerp(0, sideY, e), 0);
+  packGroup.rotation.set(lerp(0.5, 0.05, a) - tilt * 0.6, lerp(-Math.PI * 0.85, 0, a) + s * Math.PI * 2 + lerp(0, portrait ? -0.25 : 0.35, e), lerp(0.25, 0, a) + tilt);
+  const ps = lerp(0.9, 1, a) * lerp(1, portrait ? 0.62 : 0.85, e);
+  packGroup.scale.setScalar(ps);
+
+  cakeGroup.visible = e > 0.001;
+  const cx = portrait ? 0 : 1.75, cy = portrait ? -1.4 : -0.6;
+  cakeGroup.position.set(lerp(portrait ? 0 : 6, cx, e), lerp(portrait ? -6 : 0.4, cy, e), 0.4);
+  cakeGroup.rotation.set(lerp(1.2, 0.18, e), lerp(-2.5, -0.3, e), lerp(0.6, -0.08, e));
+  cakeGroup.scale.setScalar(portrait ? 0.95 : 1.0);
+
+  // powder burst from top of pack
+  const p = powder.geometry.attributes.position;
+  const top = new THREE.Vector3(0, 1.5, 0).applyEuler(packGroup.rotation).multiplyScalar(ps).add(packGroup.position);
+  for (let i = 0; i < N; i++) {
+    const sd = seeds[i];
+    const k = clamp((b - sd.d) / (1 - sd.d));
+    const kk = easeOut(k);
+    const fall = k * k * 1.6;
+    p.setXYZ(i, top.x + sd.dx * kk, top.y + sd.dy * kk - fall, top.z + sd.dz * kk);
+  }
+  p.needsUpdate = true;
+  pMat.opacity = b <= 0 ? 0 : clamp(Math.min(b * 6, (1 - b) * 2.2) + (t > 0.74 ? 0 : 0));
+  pMat.size = lerp(0.05, 0.09, b);
+  powder.visible = b > 0 && b < 1;
+
+  // bubbles: drift upward, fade in after intro
+  const bo = clamp(seg(t, 0.12, 0.3));
+  bubbles.forEach((q) => {
+    const y = ((q.y + 4 + t * 6 * q.sp) % 8) - 4;
+    q.m.position.set(q.x * (portrait ? 0.55 : 1) + Math.sin(t * 8 + q.ph) * 0.2, y * (portrait ? 1.5 : 1), q.z);
+    q.m.scale.setScalar(q.r * 2 * (0.3 + 0.7 * bo));
+  });
+  bubbleMat.opacity = 0.8 * bo;
+
+  // camera: slow dolly
+  const cz = portrait ? 9.2 : 8.2;
+  camera.position.set(Math.sin(t * Math.PI) * 0.8, lerp(0.4, 0.15, t), lerp(cz + 1, cz - 0.9, ease(seg(t, 0, 0.5))) + lerp(0, 1.1, e));
+  camera.lookAt(0, 0, 0);
+
+  renderer.render(scene, camera);
+};
+window.grab = (q) => renderer.domElement.toDataURL('image/webp', q);
+window.ready = true;
+</script></body></html>
