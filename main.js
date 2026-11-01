@@ -1,11 +1,6 @@
 // Nikand scroll-video: draws pre-rendered frames on a canvas as the user scrolls.
 (() => {
-  const FRAME_COUNT = 357;
-  // Clothesline frames (see tools/real/build.py). While the visitor stops
-  // scrolling here, these play back and forth so the clothes keep waving.
-  const LOOP_START = 257;
-  const LOOP_END = 334;
-  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const FRAME_COUNT = 150;
   const canvas = document.getElementById('seq');
   const ctx = canvas.getContext('2d');
   const loader = document.getElementById('loader');
@@ -72,7 +67,6 @@
   gsap.registerPlugin(ScrollTrigger);
   const caps = [...document.querySelectorAll('.cap')];
   const state = { frame: 0 };
-  let lastScroll = 0;
 
   ScrollTrigger.create({
     trigger: '.story',
@@ -81,7 +75,6 @@
     scrub: 0.6,
     onUpdate(self) {
       const p = self.progress;
-      lastScroll = performance.now();
       gsap.to(state, {
         frame: p * (FRAME_COUNT - 1),
         duration: 0.25,
@@ -104,21 +97,6 @@
     },
   });
   caps[0].style.opacity = 1;
-
-  // Idle loop: keep the clothes waving when scrolling stops on the clothesline.
-  let lastTick = 0, dir = 1;
-  function idle(now) {
-    requestAnimationFrame(idle);
-    if (reduceMotion || now - lastScroll < 350 || now - lastTick < 83) return;
-    if (current < LOOP_START || current > LOOP_END) return;
-    lastTick = now;
-    if (current >= LOOP_END) dir = -1;
-    if (current <= LOOP_START) dir = 1;
-    current += dir;
-    state.frame = current;
-    draw(current);
-  }
-  requestAnimationFrame(idle);
 
   // Simple reveal for the sections below the story.
   gsap.utils.toArray('.card, .feature, .contact h2, .contact p, .contact-actions').forEach((el) => {
