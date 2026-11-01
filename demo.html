@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="hi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Nikand Realistic Demo</title>
+  <meta name="theme-color" content="#04122f">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <style>.story { height: 450vh; } .demo-note { text-align: center; padding: 60px 16px; color: var(--muted); }</style>
+</head>
+<body>
+  <header class="nav">
+    <a href="./" class="logo">NIKAND</a>
+    <nav><a href="./" class="btn btn-small">Poori website</a></nav>
+  </header>
+
+  <!-- Realistic demo: frames cut from a Gemini (Veo) clip, scrubbed by scroll -->
+  <section class="story">
+    <div class="stage">
+      <canvas id="seq" aria-label="Dirty clothes flying into a washing machine"></canvas>
+      <div class="loader" id="loader"><span id="loaderPct">0%</span></div>
+      <div class="cap cap-low" data-from="0" data-to="0.3">
+        <p class="eyebrow">Realistic demo</p>
+        <h2>Scroll karein ↓</h2>
+        <p>Jitna scroll, utni video. Rukenge to video bhi rukegi.</p>
+      </div>
+      <div class="cap cap-low" data-from="0.4" data-to="0.75">
+        <p class="eyebrow">Mitti, chai, grease</p>
+        <h2>Gande kapde? Koi tension nahi.</h2>
+      </div>
+      <div class="cap cap-low" data-from="0.85" data-to="1.01">
+        <p class="eyebrow">Ab bas thoda sa Nikand</p>
+        <h2>Har daag, ek dhulai me saaf.</h2>
+      </div>
+    </div>
+  </section>
+  <p class="demo-note">Ye demo hai. Baaki clips aane par poori website isi tarah asli dikhegi.</p>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+  <script>
+  (() => {
+    const N = 120;
+    const set = matchMedia('(max-aspect-ratio: 1/1)').matches ? 'mobile' : 'desktop';
+    const canvas = document.getElementById('seq'), ctx = canvas.getContext('2d');
+    const loader = document.getElementById('loader'), pct = document.getElementById('loaderPct');
+    let current = 0, loaded = 0;
+    const imgs = Array.from({ length: N }, (_, i) => {
+      const im = new Image();
+      im.onload = im.onerror = () => { loaded++; pct.textContent = Math.round(loaded / N * 100) + '%'; if (i === current) draw(i); if (loaded === N) loader.classList.add('done'); };
+      im.src = `frames/real/${set}/${String(i + 1).padStart(4, '0')}.webp`;
+      return im;
+    });
+    imgs[0].addEventListener('load', () => setTimeout(() => loader.classList.add('done'), 500), { once: true });
+    function draw(i) {
+      const im = imgs[i]; if (!im || !im.naturalWidth) return;
+      const s = Math.max(canvas.width / im.naturalWidth, canvas.height / im.naturalHeight);
+      const w = im.naturalWidth * s, h = im.naturalHeight * s;
+      ctx.drawImage(im, (canvas.width - w) / 2, (canvas.height - h) / 2, w, h);
+    }
+    function resize() { const d = Math.min(devicePixelRatio || 1, 2); canvas.width = canvas.clientWidth * d; canvas.height = canvas.clientHeight * d; draw(current); }
+    resize(); addEventListener('resize', resize);
+    gsap.registerPlugin(ScrollTrigger);
+    const caps = [...document.querySelectorAll('.cap')], st = { f: 0 };
+    ScrollTrigger.create({
+      trigger: '.story', start: 'top top', end: 'bottom bottom', scrub: 0.5,
+      onUpdate(self) {
+        const p = self.progress;
+        gsap.to(st, { f: p * (N - 1), duration: 0.2, overwrite: true, ease: 'none', onUpdate() { const f = Math.round(st.f); if (f !== current) { current = f; draw(f); } } });
+        caps.forEach((c) => { const a = +c.dataset.from, b = +c.dataset.to, e = 0.05; let o = p >= a && p <= b ? Math.min(1, (p - a) / e, (b - p) / e) : 0; if (a === 0 && p < e) o = 1; c.style.opacity = o; });
+      },
+    });
+    caps[0].style.opacity = 1;
+  })();
+  </script>
+</body>
+</html>
