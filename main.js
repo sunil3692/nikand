@@ -1,10 +1,10 @@
 // Nikand scroll-video: draws pre-rendered frames on a canvas as the user scrolls.
 (() => {
-  const FRAME_COUNT = 300;
-  // Frames where the clothes wave on the line. The animation repeats exactly
-  // over this range, so it keeps playing while the visitor stops scrolling.
-  const LOOP_START = 233; // frame index (file 0234.webp), t = 233/299 in tools/render/scene.html
-  const LOOP_END = 263;   // file 0264.webp looks the same as LOOP_START
+  const FRAME_COUNT = 357;
+  // Clothesline frames (see tools/real/build.py). While the visitor stops
+  // scrolling here, these play back and forth so the clothes keep waving.
+  const LOOP_START = 257;
+  const LOOP_END = 334;
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const canvas = document.getElementById('seq');
   const ctx = canvas.getContext('2d');
@@ -106,13 +106,15 @@
   caps[0].style.opacity = 1;
 
   // Idle loop: keep the clothes waving when scrolling stops on the clothesline.
-  let lastTick = 0;
+  let lastTick = 0, dir = 1;
   function idle(now) {
     requestAnimationFrame(idle);
-    if (reduceMotion || now - lastScroll < 350 || now - lastTick < 50) return;
+    if (reduceMotion || now - lastScroll < 350 || now - lastTick < 83) return;
     if (current < LOOP_START || current > LOOP_END) return;
     lastTick = now;
-    current = current >= LOOP_END - 1 ? LOOP_START : current + 1;
+    if (current >= LOOP_END) dir = -1;
+    if (current <= LOOP_START) dir = 1;
+    current += dir;
     state.frame = current;
     draw(current);
   }
